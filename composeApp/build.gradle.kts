@@ -130,6 +130,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.webview)
             implementation(libs.jna)
+            coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
         }
     }
 }
