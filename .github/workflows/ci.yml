@@ -1,7 +1,12 @@
 name: ci
 
 on:
-  workflow_dispatch: 
+   workflow_dispatch: 
+    inputs:
+      version:
+        description: "v0.45.0"
+        required: true
+        type: string
 
 jobs:
   ci:
@@ -45,4 +50,4 @@ jobs:
 
       - run: just check
 
-      - run: just release ${{ github.ref_name }}
+      - run: just release ${{ inputs.version }}
