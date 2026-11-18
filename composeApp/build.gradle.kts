@@ -97,8 +97,7 @@ kotlin {
             kotlin.srcDir(generateLanguages)
             dependencies {
                 implementation(compose.runtime)
-                implementation(compose.components.resources)
-                coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
+                implementation(compose.components.resources)            
             }
         }
         val jvmCommonMain by getting
@@ -147,6 +146,7 @@ val windowsRuntimeClasspath by configurations.creating {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     windowsRuntimeClasspath(compose.desktop.windows_x64)
 }
 
@@ -154,6 +154,12 @@ android {
     namespace = "app.reseam.manager"
     compileSdk {
         version = release(libs.versions.android.compileSdk.get().toInt()) { minorApiLevel = 0 }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
