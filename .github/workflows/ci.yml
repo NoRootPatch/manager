@@ -41,6 +41,23 @@ jobs:
           key: deps-${{ hashFiles('**/Cargo.lock', '**/*.gradle.kts', '**/libs.versions.toml', '**/bun.lock', '**/package-lock.json') }}
           restore-keys: deps-
 
+      - name: Patch justfile to remove S3 upload
+        run: |
+          sed -i 's|s3://[^ ]*|./dist|g' justfile
+          sed -i "s|https://reseam.app/download/|https://github.com/${GITHUB_REPOSITORY}/releases/download/v${{ inputs.version }}/|" justfile
+          mkdir -p ./dist
+
       - run: just check
 
       - run: just release ${{ inputs.version }}
+
+      - name: Upload Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Reseam-Release-${{ inputs.version }}
+          path: |
+            ./dist/**/*
+            composeApp/build/release/**/*
+            **/*.apk
+          if-no-files-found: ignore
