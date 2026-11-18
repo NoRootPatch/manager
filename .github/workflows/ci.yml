@@ -45,9 +45,11 @@ jobs:
 
       - run: just release ${{ inputs.version }}
 
-      - name: Upload to GitHub Actions
+      - name: Upload Android APK to GitHub Actions
         uses: actions/upload-artifact@v4
         with:
-          name: Reseam-Manager-${{ inputs.version }}
-          path: composeApp/build/release/*
+          name: Reseam-Android-APK-${{ inputs.version }}
+          path: |
+            composeApp/build/release/**/*.apk
+            composeApp/build/outputs/apk/**/*.apk
           retention-days: 7
