@@ -15,14 +15,7 @@ jobs:
     container:
       image: ghcr.io/reseam/ci:2026.10.19
     env:
-      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
-      MIRROR_RELEASE_TOKEN: ${{ secrets.MIRROR_RELEASE_TOKEN }}
-      AWS_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT }}
-      AWS_REGION: auto
-      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      FORGEJO_PACKAGES_TOKEN: ${{ secrets.FORGEJO_PACKAGES_TOKEN }}
-      BUNDLE_SIGNING_KEY_B64: ${{ secrets.BUNDLE_SIGNING_KEY_B64 }}
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}      
       ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
       RESEAM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       RESEAM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
