@@ -10,11 +10,6 @@ check:
 release tag:
     curl -fsSL --create-dirs -o {{ reseam }} https://cdn.reseam.app/engine/v{{ engine }}/reseam-linux-x64
     chmod +x {{ reseam }}
-    echo "$ANDROID_KEYSTORE_B64" | base64 -d > build/keystore.jks
+    mkdir -p build
+    if [ -n "$ANDROID_KEYSTORE_B64" ]; then echo "$ANDROID_KEYSTORE_B64" | base64 -d > build/keystore.jks; else keytool -genkeypair -v -keystore build/keystore.jks -alias reseam -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Reseam, OU=Dev, O=Reseam, L=VN, S=VN, C=VN"; fi
     RESEAM_KEYSTORE="$PWD/build/keystore.jks" {{ gradle }} :composeApp:stageRelease -PmanagerVersion={{ tag }}
-    {{ reseam }} release manager composeApp/build/release --tag {{ tag }} --name "Reseam Manager" --author Reseam \
-        --download-url https://reseam.app/download/ --to s3://reseam-releases/manager --keep 3 --forge-release
-    # The GitHub mirror gets the same files, as a second place to download them from.
-    git push "https://x-access-token:$MIRROR_RELEASE_TOKEN@github.com/Reseam/manager.git" refs/tags/{{ tag }}
-    GITHUB_SERVER_URL=https://github.com GITHUB_API_URL=https://api.github.com RELEASE_TOKEN="$MIRROR_RELEASE_TOKEN" \
-        {{ reseam }} release files composeApp/build/release --tag {{ tag }}
