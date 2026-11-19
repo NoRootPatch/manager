@@ -43,7 +43,7 @@ jobs:
 
       - run: just check
 
-      - name: Replace mallopt
+      - name: Patch mallopt
         run: |
           for a in $(grep -ral "libreseam-sdk-native.so" ~/.gradle/caches 2>/dev/null); do
                   case "$a" in *.aar|*.jar|*.zip)
@@ -55,11 +55,20 @@ jobs:
 
       - run: just release ${{ inputs.version }}
 
-      - name: Upload Android APK to GitHub Actions
+      - name: Upload ARM APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Reseam-Android-APK-${{ inputs.version }}
-          path: |
-            composeApp/build/release/**/*.apk
-            composeApp/build/outputs/apk/**/*.apk
-          retention-days: 7
+              name: Reseam-ARM-${{ inputs.version }}
+              path: |
+                composeApp/build/release/**/*arm*.apk
+                composeApp/build/outputs/apk/**/*arm*.apk
+              retention-days: 7
+
+      - name: Upload x86 APKs
+        uses: actions/upload-artifact@v4
+        with:
+              name: Reseam-x86-${{ inputs.version }}
+              path: |
+                composeApp/build/release/**/*x86*.apk
+                composeApp/build/outputs/apk/**/*x86*.apk
+              retention-days: 7
