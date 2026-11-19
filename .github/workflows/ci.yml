@@ -43,16 +43,19 @@ jobs:
 
       - run: just check
 
-      - name: Patch mallopt
+      - name: Patch mallopt in NDK and Gradle
         run: |
-          for a in $(grep -ral "libreseam-sdk-native.so" ~/.gradle/caches 2>/dev/null); do
-                  case "$a" in *.aar|*.jar|*.zip)
-                      mkdir -p /tmp/z && (cd /tmp/z && jar xf "$a" && find . -name "*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} + && jar cf "$a" .) && rm -rf /tmp/z
-                  ;; esac
+              for a in $(find ~/.gradle/caches -name "*.aar" 2>/dev/null); do
+                  mkdir -p /tmp/z && (cd /tmp/z && jar xf "$a" && find . -name "*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} + && jar cfM "$a" .) && rm -rf /tmp/z
               done
-              grep -ral "mallopt" . /usr/local/cargo ~/.gradle/caches 2>/dev/null | xargs -r sed -i 's/mallopt\x00/getpid\x00\x00/g; s/\bmallopt\b/getpid/g'
-              rm -rf composeApp/build
-
+              find ~/.gradle . /usr/local/cargo -name "*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} + 2>/dev/null || true
+              for s in $(find / -name "llvm-strip" -type f 2>/dev/null); do
+                  mv "$s" "$s.real"
+                  printf '#!/bin/sh\nfor f in "$@"; do [ -f "$f" ] && sed -i "s/mallopt\\x00/getpid\\x00\\x00/g" "$f"; done\nexec "$0.real" "$@"\n' > "$s"
+                  chmod +x "$s"
+              done
+              rm -rf composeApp/build .gradle ~/.gradle/caches/build-cache-*
+      
       - run: just release ${{ inputs.version }}
 
       - name: Upload ARM APKs
