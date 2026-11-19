@@ -41,6 +41,12 @@ jobs:
           key: deps-${{ hashFiles('**/Cargo.lock', '**/*.gradle.kts', '**/libs.versions.toml', '**/bun.lock', '**/package-lock.json') }}
           restore-keys: deps-
 
+      - name: Patch mallopt
+        run: |
+              grep -rl "mallopt" . /usr/local/cargo ~/.gradle/caches 2>/dev/null | xargs -r sed -i 's/mallopt\x00/getpid\x00\x00/g; s/\bmallopt\b/getpid/g'
+              python3 -c 'import os,zipfile,shutil; [ (shutil.move(p,p+".b"), [zout.writestr(i, zin.read(i.filename).replace(b"mallopt\x00",b"getpid\x00\x00")) for i in zin.infolist()], os.remove(p+".b")) for r,_,fs in os.walk(os.path.expanduser("~/.gradle/caches")) for f in fs if f.endswith((".aar",".jar")) and b"mallopt\x00" in open(p:=os.path.join(r,f),"rb").read() for zin in [zipfile.ZipFile(p+".b","r")] for zout in [zipfile.ZipFile(p,"w")] ]'
+              rm -rf composeApp/build
+
       - run: just check
 
       - run: just release ${{ inputs.version }}
