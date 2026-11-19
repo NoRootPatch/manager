@@ -41,6 +41,11 @@ jobs:
           key: deps-${{ hashFiles('**/Cargo.lock', '**/*.gradle.kts', '**/libs.versions.toml', '**/bun.lock', '**/package-lock.json') }}
           restore-keys: deps-
 
+      - name: Fix NotificationChannel
+        run: |
+              find . -name "ReseamApplication.kt" -exec sed -i 's/createNotificationChannels(/if (android.os.Build.VERSION.SDK_INT >= 26) createNotificationChannels(/g' {} +
+              find . -name "Notifications.kt" -exec sed -i '/fun createNotificationChannels/,/{/ s/{/{ if (android.os.Build.VERSION.SDK_INT < 26) return;/' {} +
+
       - run: just check
 
       - name: Setup Cargo Wrapper to strip mallopt
