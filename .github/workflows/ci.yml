@@ -60,8 +60,7 @@ jobs:
         with:
               name: Reseam-ARM-${{ inputs.version }}
               path: |
-                composeApp/build/release/**/*arm*.apk
-                composeApp/build/outputs/apk/**/*arm*.apk
+                composeApp/build/release/**/*arm*.apk                
               retention-days: 7
 
       - name: Upload x86 APKs
@@ -69,6 +68,5 @@ jobs:
         with:
               name: Reseam-x86-${{ inputs.version }}
               path: |
-                composeApp/build/release/**/*x86*.apk
-                composeApp/build/outputs/apk/**/*x86*.apk
+                composeApp/build/release/**/*x86*.apk                
               retention-days: 7
