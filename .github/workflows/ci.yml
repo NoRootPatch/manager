@@ -53,20 +53,58 @@ jobs:
       
       - run: just release ${{ inputs.version }}
      
-      - name: Ensure APKs have no mallopt
+      - name: Patch mallopt in final APKs
         run: |
+              cat << 'EOF' > Fix.java
+              import java.io.*;
+              import java.util.zip.*;
+
+              public class Fix {
+                  public static void main(String[] args) throws Exception {
+                      byte[] pat = "mallopt\0".getBytes(), rep = "getpid\0\0".getBytes();
+                      File inFile = new File(args[0]), outFile = new File(args[0] + ".tmp");
+                      try (ZipFile zf = new ZipFile(inFile);
+                           ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(outFile))) {
+                          var e = zf.entries();
+                          while (e.hasMoreElements()) {
+                              ZipEntry ze = e.nextElement();
+                              String n = ze.getName();
+                              if (n.startsWith("META-INF/") && (n.endsWith(".SF") || n.endsWith(".RSA") || n.endsWith(".DSA") || n.equals("META-INF/MANIFEST.MF"))) continue;
+                              byte[] buf = zf.getInputStream(ze).readAllBytes();
+                              if (n.endsWith(".so")) {
+                                  for (int i = 0; i <= buf.length - pat.length; i++) {
+                                      boolean m = true;
+                                      for (int j = 0; j < pat.length; j++) if (buf[i + j] != pat[j]) { m = false; break; }
+                                      if (m) {
+                                          System.arraycopy(rep, 0, buf, i, rep.length);
+                                          System.out.println("Patched mallopt in " + inFile.getName() + " -> " + n);
+                                      }
+                                  }
+                              }
+                              ZipEntry ne = new ZipEntry(n);
+                              ne.setMethod(ze.getMethod());
+                              if (ze.getMethod() == ZipEntry.STORED) {
+                                  ne.setSize(buf.length);
+                                  ne.setCompressedSize(buf.length);
+                                  CRC32 crc = new CRC32();
+                                  crc.update(buf);
+                                  ne.setCrc(crc.getValue());
+                              }
+                              zos.putNextEntry(ne);
+                              zos.write(buf);
+                              zos.closeEntry();
+                          }
+                      }
+                  }
+              }
+              EOF
               ZIPALIGN=$(find / -name zipalign 2>/dev/null | head -n 1)
               APKSIGNER=$(find / -name apksigner 2>/dev/null | head -n 1)
-              for apk in composeApp/build/release/**/*.apk; do
-                  if grep -qa "mallopt" "$apk"; then
-                      mkdir -p /tmp/apk && (cd /tmp/apk && jar xf "$PWD/../$apk" 2>/dev/null || jar xf "$apk")
-                      find /tmp/apk -name "*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} +
-                      rm -f /tmp/apk/META-INF/*.SF /tmp/apk/META-INF/*.RSA /tmp/apk/META-INF/*.DSA /tmp/apk/META-INF/MANIFEST.MF
-                      (cd /tmp/apk && jar cf0M /tmp/unsigned.apk .)
-                      "$ZIPALIGN" -f -p 4 /tmp/unsigned.apk "$apk"
-                      "$APKSIGNER" sign --ks build/keystore.jks --ks-pass env:RESEAM_KEYSTORE_PASSWORD --ks-key-alias "$RESEAM_KEY_ALIAS" --key-pass env:RESEAM_KEY_PASSWORD "$apk"
-                      rm -rf /tmp/apk /tmp/unsigned.apk "$apk.idsig"
-                  fi
+              for apk in $(find composeApp/build/release -name "*.apk"); do
+                  java Fix.java "$apk"
+                  "$ZIPALIGN" -f -p 4 "$apk.tmp" "$apk"
+                  "$APKSIGNER" sign --ks build/keystore.jks --ks-pass env:RESEAM_KEYSTORE_PASSWORD --ks-key-alias "$RESEAM_KEY_ALIAS" --key-pass env:RESEAM_KEY_PASSWORD "$apk"
+                  rm -f "$apk.tmp" "$apk.idsig"
               done
        
       - name: Upload ARM APKs
