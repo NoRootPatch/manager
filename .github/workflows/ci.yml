@@ -43,18 +43,32 @@ jobs:
 
       - run: just check
 
-      - name: Hook NDK linker and strip to replace mallopt with getpid
+      - name: Setup Cargo Wrapper to strip mallopt
         run: |
-              for s in $(find / -name "llvm-strip" -o -name "ld.lld" -o -name "rust-lld" 2>/dev/null); do
-                  cp -L "$s" "$s.real" && rm -f "$s"
-                  printf '#!/bin/sh\n"$0.real" "$@"\nrc=$?\nfor a in "$@"; do f="${a#-o}"; [ -f "$f" ] && sed -i "s/mallopt\\x00/getpid\\x00\\x00/g" "$f"; done\nexit $rc\n' > "$s"
-                  chmod +x "$s"
-              done
-              find / -name "*reseam*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} + 2>/dev/null || true
-              rm -rf composeApp/build .gradle ~/.gradle/caches/build-cache-* ~/.gradle/caches/*/transforms
+              printf '#!/bin/sh\n"$@"\nrc=$?\nfind . -name "*.so" -exec sed -i "s/mallopt\\x00/getpid\\x00\\x00/g" {} + 2>/dev/null\nexit $rc\n' > /tmp/rustc-wrap
+              chmod +x /tmp/rustc-wrap
+              echo "CARGO_BUILD_RUSTC_WRAPPER=/tmp/rustc-wrap" >> "$GITHUB_ENV"
+              find ~/.gradle . -name "*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} + 2>/dev/null || true
+              rm -rf composeApp/build .gradle ~/.gradle/caches/build-cache-* ~/.gradle/caches/*/transforms*
       
       - run: just release ${{ inputs.version }}
-
+     
+      - name: Ensure APKs have no mallopt
+        run: |
+              ZIPALIGN=$(find / -name zipalign 2>/dev/null | head -n 1)
+              APKSIGNER=$(find / -name apksigner 2>/dev/null | head -n 1)
+              for apk in composeApp/build/release/**/*.apk; do
+                  if grep -qa "mallopt" "$apk"; then
+                      mkdir -p /tmp/apk && (cd /tmp/apk && jar xf "$PWD/../$apk" 2>/dev/null || jar xf "$apk")
+                      find /tmp/apk -name "*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} +
+                      rm -f /tmp/apk/META-INF/*.SF /tmp/apk/META-INF/*.RSA /tmp/apk/META-INF/*.DSA /tmp/apk/META-INF/MANIFEST.MF
+                      (cd /tmp/apk && jar cf0M /tmp/unsigned.apk .)
+                      "$ZIPALIGN" -f -p 4 /tmp/unsigned.apk "$apk"
+                      "$APKSIGNER" sign --ks build/keystore.jks --ks-pass env:RESEAM_KEYSTORE_PASSWORD --ks-key-alias "$RESEAM_KEY_ALIAS" --key-pass env:RESEAM_KEY_PASSWORD "$apk"
+                      rm -rf /tmp/apk /tmp/unsigned.apk "$apk.idsig"
+                  fi
+              done
+       
       - name: Upload ARM APKs
         uses: actions/upload-artifact@v4
         with:
