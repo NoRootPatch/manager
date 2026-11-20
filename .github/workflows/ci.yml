@@ -43,6 +43,9 @@ jobs:
 
       - name: Fix Android 7 APIs
         run: |
+              sed -i 's|curl -fsSL.*cdn.reseam.app.*|true|g' justfile
+              sed -i 's/--no-daemon/--no-daemon --offline/g' justfile
+              
               find . -name "ReseamApplication.kt" -exec sed -i 's/createNotificationChannels(/if (android.os.Build.VERSION.SDK_INT >= 26) createNotificationChannels(/g' {} +
               find . -name "Notifications.kt" -exec sed -i '/fun createNotificationChannels/,/{/ s/{/{ if (android.os.Build.VERSION.SDK_INT < 26) return;/' {} +
               find . -name "*.kt" -exec sed -i -E 's/([a-zA-Z0-9_.]*packageManager)\.canRequestPackageInstalls\(\)/(android.os.Build.VERSION.SDK_INT < 26 || \1.canRequestPackageInstalls())/g' {} +
