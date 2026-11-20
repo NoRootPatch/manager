@@ -48,6 +48,10 @@ jobs:
               find . -name "ReseamApplication.kt" -exec sed -i 's/createNotificationChannels(/if (android.os.Build.VERSION.SDK_INT >= 26) createNotificationChannels(/g' {} +
               find . -name "Notifications.kt" -exec sed -i '/fun createNotificationChannels/,/{/ s/{/{ if (android.os.Build.VERSION.SDK_INT < 26) return;/' {} +
               find . -name "*.kt" -exec sed -i -E 's/([a-zA-Z0-9_.]*packageManager)\.canRequestPackageInstalls\(\)/(android.os.Build.VERSION.SDK_INT < 26 || \1.canRequestPackageInstalls())/g' {} +
+              for f in $(grep -rl "import io.github.vinceglb.filekit.atomicMove" .); do
+                  sed -i 's/import io.github.vinceglb.filekit.atomicMove/import io.github.vinceglb.filekit.copyTo\nimport io.github.vinceglb.filekit.delete/g' "$f"
+                  printf '\nprivate suspend fun io.github.vinceglb.filekit.PlatformFile.atomicMove(destination:io.github.vinceglb.filekit.PlatformFile) { destination.delete(false); this.copyTo(destination); this.delete(false) }\n' >> "$f"
+              done
       
       - run: just check
 
