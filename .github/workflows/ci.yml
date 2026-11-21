@@ -43,7 +43,8 @@ jobs:
 
       - name: Fix Android 7 APIs
         run: |
-              
+              sed -i 's/android-\?2[6-9]/android24/g; s/minSdk = 2[6-9]/minSdk = 24/g' $(find . ~/.cargo -maxdepth 4 -type f 2>/dev/null) 2>/dev/null || true
+              printf 'RUSTFLAGS=-C link-arg=-Wl,--defsym,mallopt=getpid\nCFLAGS=-D__ANDROID_API__=24\nCARGO_NDK_ANDROID_PLATFORM=24\n' >> "$GITHUB_ENV"
               
               find . -name "ReseamApplication.kt" -exec sed -i 's/createNotificationChannels(/if (android.os.Build.VERSION.SDK_INT >= 26) createNotificationChannels(/g' {} +
               find . -name "Notifications.kt" -exec sed -i '/fun createNotificationChannels/,/{/ s/{/{ if (android.os.Build.VERSION.SDK_INT < 26) return;/' {} +
