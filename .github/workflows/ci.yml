@@ -42,48 +42,10 @@ jobs:
           restore-keys: deps-
 
       - name: Fix Android 7 APIs
-        run: |
-              sed -i 's/android-\?2[6-9]/android24/g; s/minSdk = 2[6-9]/minSdk = 24/g' $(find . ~/.cargo -maxdepth 4 -type f 2>/dev/null) 2>/dev/null || true
-              printf 'RUSTFLAGS=-C link-arg=-Wl,--defsym,mallopt=getpid\nCFLAGS=-D__ANDROID_API__=24\nCARGO_NDK_ANDROID_PLATFORM=24\n' >> "$GITHUB_ENV"
-              
+        run: |                          
               find . -name "ReseamApplication.kt" -exec sed -i 's/createNotificationChannels(/if (android.os.Build.VERSION.SDK_INT >= 26) createNotificationChannels(/g' {} +
               find . -name "Notifications.kt" -exec sed -i '/fun createNotificationChannels/,/{/ s/{/{ if (android.os.Build.VERSION.SDK_INT < 26) return;/' {} +
-              find . -name "*.kt" -exec sed -i -E 's/([a-zA-Z0-9_.]*packageManager)\.canRequestPackageInstalls\(\)/(android.os.Build.VERSION.SDK_INT < 26 || \1.canRequestPackageInstalls())/g' {} +
-              
-
-      - name: Hook Gradle to patch FileSystemJvmKt to j$.nio.file.Files
-        run: |              
-              mkdir -p ~/.gradle/init.d
-              cat << 'EOF' > ~/.gradle/init.d/jnio.gradle
-              gradle.taskGraph.whenReady { graph ->
-                  graph.allTasks.each { task ->
-                      task.doFirst {
-                          def cache = new File(System.getProperty("user.home"), ".gradle/caches")
-                          if (cache.exists()) {
-                              cache.eachFileRecurse { f ->
-                                  if (f.name.contains("kotlinx-io-core") && f.name.endsWith(".jar") && !new File(f.parentFile, f.name + ".j").exists()) {
-                                      def d = new File(f.parentFile, "j_tmp")
-                                      d.mkdirs()
-                                      ant.unzip(src: f, dest: d)
-                                      d.eachFileRecurse { c ->
-                                          if (c.name.startsWith("FileSystemJvm") && c.name.endsWith(".class")) {
-                                              String s = new String(c.bytes, "ISO-8859-1")
-                                              if (s.contains("\u0000\u0013java.nio.file.Files")) {
-                                                  c.bytes = s.replace("\u0000\u0013java.nio.file.Files", "\u0000\u0011j\$.nio.file.Files").getBytes("ISO-8859-1")
-                                                  println("Patched j\$.nio.file.Files in " + f.name)
-                                              }
-                                          }
-                                      }
-                                      ant.zip(destfile: f, basedir: d)
-                                      d.deleteDir()
-                                      new File(f.parentFile, f.name + ".j").createNewFile()
-                                  }
-                              }
-                          }
-                      }
-                  }
-              }
-              EOF
+              find . -name "*.kt" -exec sed -i -E 's/([a-zA-Z0-9_.]*packageManager)\.canRequestPackageInstalls\(\)/(android.os.Build.VERSION.SDK_INT < 26 || \1.canRequestPackageInstalls())/g' {} +              
       
       - run: just check
 
@@ -95,7 +57,13 @@ jobs:
               find ~/.gradle . -name "*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} + 2>/dev/null || true
               rm -rf composeApp/build .gradle ~/.gradle/caches/build-cache-* ~/.gradle/caches/*/transforms*
 
-      - run: just release ${{ inputs.version }}
+      - name: Release
+        run: | 
+             for f in $(find ~/.gradle/caches -name "*kotlinx-io-core*.jar" 2>/dev/null); do
+                  mkdir -p /tmp/k && (cd /tmp/k && jar xf "$f" && find . -name "FileSystemJvm*.class" -exec sed -i 's/\x00\x13java\.nio\.file\.Files/\x00\x11j$.nio.file.Files/g' {} + && jar cfM "$f" .) && rm -rf /tmp/k
+              done
+              find ~/.gradle/caches -name "FileSystemJvm*.class" -exec sed -i 's/\x00\x13java\.nio\.file\.Files/\x00\x11j$.nio.file.Files/g' {} + 2>/dev/null || true
+             just release ${{ inputs.version }}
      
       - name: Patch mallopt in final APKs
         run: |
