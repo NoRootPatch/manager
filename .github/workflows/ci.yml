@@ -63,10 +63,16 @@ jobs:
 
       - name: Unlock NioMover in kotlinx-io
         run: |
-              for j in $(find ~/.gradle/caches -name "*kotlinx-io-core-jvm*.jar"); do
-                  mkdir -p /tmp/k && (cd /tmp/k && jar xf "$j" && sed -i 's/java\.nio\.file\.Files/java.nio.ByteBuffer/g' kotlinx/io/files/FileSystemJvmKt*.class && jar cfM "$j" .) && rm -rf /tmp/k
-              done && rm -rf composeApp/build .gradle ~/.gradle/caches/build-cache-* ~/.gradle/caches/*/transforms*
-      
+              for f in $(find ~/.gradle/caches -name "*kotlinx-io*.jar" -o -name "*kotlinx-io*.aar"); do
+                  mkdir -p /tmp/k && (cd /tmp/k && jar xf "$f"
+                      if [ -f classes.jar ]; then
+                          mkdir -p c && (cd c && jar xf ../classes.jar && find . -name "FileSystemJvm*.class" -exec sed -i 's/\x00\x13java\.nio\.file\.Files/\x00\x11j$.nio.file.Files/g' {} + && jar cfM ../classes.jar .) && rm -rf c
+                      fi
+                      find . -name "FileSystemJvm*.class" -exec sed -i 's/\x00\x13java\.nio\.file\.Files/\x00\x11j$.nio.file.Files/g' {} +
+                      jar cfM "$f" .) && rm -rf /tmp/k
+              done
+              rm -rf composeApp/build .gradle ~/.gradle/caches/build-cache-* ~/.gradle/caches/*/transforms*
+        
       - run: just release ${{ inputs.version }}
      
       - name: Patch mallopt in final APKs
