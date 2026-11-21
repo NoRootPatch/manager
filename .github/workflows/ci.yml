@@ -45,8 +45,13 @@ jobs:
         run: |                          
               find . -name "ReseamApplication.kt" -exec sed -i 's/createNotificationChannels(/if (android.os.Build.VERSION.SDK_INT >= 26) createNotificationChannels(/g' {} +
               find . -name "Notifications.kt" -exec sed -i '/fun createNotificationChannels/,/{/ s/{/{ if (android.os.Build.VERSION.SDK_INT < 26) return;/' {} +
-              find . -name "*.kt" -exec sed -i -E 's/([a-zA-Z0-9_.]*packageManager)\.canRequestPackageInstalls\(\)/(android.os.Build.VERSION.SDK_INT < 26 || \1.canRequestPackageInstalls())/g' {} +              
-      
+              find . -name "*.kt" -exec sed -i -E 's/([a-zA-Z0-9_.]*packageManager)\.canRequestPackageInstalls\(\)/(android.os.Build.VERSION.SDK_INT < 26 || \1.canRequestPackageInstalls())/g' {} +    
+              for f in $(grep -rl "\.atomicMove(" . --include="*.kt"); do
+                  sed -i 's/import io.github.vinceglb.filekit.atomicMove/import io.github.vinceglb.filekit.path/g' "$f"
+                  grep -q "import io.github.vinceglb.filekit.path" "$f" || sed -i '1s/^/import io.github.vinceglb.filekit.path\n/' "$f"
+                  printf '\nprivate suspend fun io.github.vinceglb.filekit.PlatformFile.atomicMove(destination: io.github.vinceglb.filekit.PlatformFile) { val s = java.io.File(this.path); val d = java.io.File(destination.path); d.parentFile?.mkdirs(); if (d.exists()) d.delete(); if (!s.renameTo(d)) { s.copyTo(d, true); s.delete() } }\n' >> "$f"
+              done
+              
       - run: just check
 
       - name: Setup Cargo Wrapper to strip mallopt
@@ -57,13 +62,7 @@ jobs:
               find ~/.gradle . -name "*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} + 2>/dev/null || true
               rm -rf composeApp/build .gradle ~/.gradle/caches/build-cache-* ~/.gradle/caches/*/transforms*
 
-      - name: Release
-        run: | 
-             for f in $(find ~/.gradle/caches -name "*kotlinx-io-core*.jar" 2>/dev/null); do
-                  mkdir -p /tmp/k && (cd /tmp/k && jar xf "$f" && find . -name "FileSystemJvm*.class" -exec sed -i 's/\x00\x13java\.nio\.file\.Files/\x00\x11j$.nio.file.Files/g' {} + && jar cfM "$f" .) && rm -rf /tmp/k
-              done
-              find ~/.gradle/caches -name "FileSystemJvm*.class" -exec sed -i 's/\x00\x13java\.nio\.file\.Files/\x00\x11j$.nio.file.Files/g' {} + 2>/dev/null || true
-             just release ${{ inputs.version }}
+      - run: just release ${{ inputs.version }}
      
       - name: Patch mallopt in final APKs
         run: |
