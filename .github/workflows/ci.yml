@@ -49,9 +49,8 @@ jobs:
               find . -name "ReseamApplication.kt" -exec sed -i 's/createNotificationChannels(/if (android.os.Build.VERSION.SDK_INT >= 26) createNotificationChannels(/g' {} +
               find . -name "Notifications.kt" -exec sed -i '/fun createNotificationChannels/,/{/ s/{/{ if (android.os.Build.VERSION.SDK_INT < 26) return;/' {} +
               find . -name "*.kt" -exec sed -i -E 's/([a-zA-Z0-9_.]*packageManager)\.canRequestPackageInstalls\(\)/(android.os.Build.VERSION.SDK_INT < 26 || \1.canRequestPackageInstalls())/g' {} +
-              for f in $(grep -rl "import io.github.vinceglb.filekit.atomicMove" .); do
-                  sed -i 's/import io.github.vinceglb.filekit.atomicMove/import io.github.vinceglb.filekit.copyTo\nimport io.github.vinceglb.filekit.delete/g' "$f"
-                  printf '\nprivate suspend fun io.github.vinceglb.filekit.PlatformFile.atomicMove(destination:io.github.vinceglb.filekit.PlatformFile) { destination.delete(false); this.copyTo(destination); this.delete(false) }\n' >> "$f"
+              for j in $(find ~/.gradle/caches -name "kotlinx-io-core-jvm*.jar" 2>/dev/null); do
+                  mkdir -p /tmp/k && (cd /tmp/k && jar xf "$j" && find . -name "*.class" -exec sed -i 's/java\.nio\.file\.Files/j$.nio.file.Files\x00\x00/g' {} + && jar cfM "$j" .) && rm -rf /tmp/k
               done
       
       - run: just check
@@ -116,7 +115,7 @@ jobs:
               for apk in $(find composeApp/build/release -name "*.apk"); do
                   java Fix.java "$apk"
                   "$ZIPALIGN" -f -p 4 "$apk.tmp" "$apk"
-                  "$APKSIGNER" sign --ks build/keystore.jks --ks-pass env:RESEAM_KEYSTORE_PASSWORD --ks-key-alias "$RESEAM_KEY_ALIAS" --key-pass env:RESEAM_KEY_PASSWORD "$apk"
+                  "$APKSIGNER" sign --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled false --v4-signing-enabled false --ks build/keystore.jks --ks-pass env:RESEAM_KEYSTORE_PASSWORD --ks-key-alias "$RESEAM_KEY_ALIAS" --key-pass env:RESEAM_KEY_PASSWORD "$apk"
                   rm -f "$apk.tmp" "$apk.idsig"
               done
        
