@@ -49,9 +49,7 @@ jobs:
               find . -name "ReseamApplication.kt" -exec sed -i 's/createNotificationChannels(/if (android.os.Build.VERSION.SDK_INT >= 26) createNotificationChannels(/g' {} +
               find . -name "Notifications.kt" -exec sed -i '/fun createNotificationChannels/,/{/ s/{/{ if (android.os.Build.VERSION.SDK_INT < 26) return;/' {} +
               find . -name "*.kt" -exec sed -i -E 's/([a-zA-Z0-9_.]*packageManager)\.canRequestPackageInstalls\(\)/(android.os.Build.VERSION.SDK_INT < 26 || \1.canRequestPackageInstalls())/g' {} +
-              for j in $(find ~/.gradle/caches -name "kotlinx-io-core-jvm*.jar" 2>/dev/null); do
-                  mkdir -p /tmp/k && (cd /tmp/k && jar xf "$j" && find . -name "*.class" -exec sed -i 's/java\.nio\.file\.Files/j$.nio.file.Files\x00\x00/g' {} + && jar cfM "$j" .) && rm -rf /tmp/k
-              done
+              
       
       - run: just check
 
@@ -62,6 +60,12 @@ jobs:
               echo "CARGO_BUILD_RUSTC_WRAPPER=/tmp/rustc-wrap" >> "$GITHUB_ENV"
               find ~/.gradle . -name "*.so" -exec sed -i 's/mallopt\x00/getpid\x00\x00/g' {} + 2>/dev/null || true
               rm -rf composeApp/build .gradle ~/.gradle/caches/build-cache-* ~/.gradle/caches/*/transforms*
+
+      - name: Unlock NioMover in kotlinx-io
+        run: |
+              for j in $(find ~/.gradle/caches -name "*kotlinx-io-core-jvm*.jar"); do
+                  mkdir -p /tmp/k && (cd /tmp/k && jar xf "$j" && sed -i 's/java\.nio\.file\.Files/java.nio.ByteBuffer/g' kotlinx/io/files/FileSystemJvmKt*.class && jar cfM "$j" .) && rm -rf /tmp/k
+              done && rm -rf composeApp/build .gradle ~/.gradle/caches/build-cache-* ~/.gradle/caches/*/transforms*
       
       - run: just release ${{ inputs.version }}
      
